@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Digitador Dark Edition
+Comment=Simulador de digitação automática
+Exec=./Digitador_Dark_Linux
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;Development;

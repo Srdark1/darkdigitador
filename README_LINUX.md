@@ -46,3 +46,24 @@ sudo apt-get install python3-tk
 
 ---
 Desenvolvido por Srdark1. Adaptado para Linux por Manus AI.
+
+## Criando um Executável (App)
+
+Para transformar o script em um arquivo executável único que você pode levar para qualquer lugar:
+
+1. Execute o script de build:
+   ```bash
+   python3 build_linux.py
+   ```
+2. O arquivo será gerado em `dist/Digitador_Dark_Linux`.
+
+## Adicionando ao Menu do Sistema
+
+Para que o Digitador apareça no seu menu de aplicativos:
+
+1. Copie o executável gerado para uma pasta permanente (ex: `/home/seu-usuario/bin/`).
+2. Edite o arquivo `digitador.desktop` ajustando o caminho em `Exec=`.
+3. Copie o arquivo `.desktop` para a pasta de aplicações do sistema:
+   ```bash
+   cp digitador.desktop ~/.local/share/applications/
+   ```
