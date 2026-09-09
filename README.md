@@ -66,7 +66,8 @@ O projeto inclui um script `build_app.py` para criar um executável Windows usan
     *   Verificar e instalar o `PyInstaller` se necessário.
     *   Compilar o `digitador.py` em um executável `Digitador_Dark_Edition.exe` na pasta `dist`.
     *   O executável será `onefile` (arquivo único) e `windowed` (sem console).
-    *   Se um arquivo `icon.ico` e/ou `Igris22 (1).jpg` estiverem presentes na mesma pasta, eles serão incluídos no executável.
+    *   O ícone `digitador-icon.ico` será aplicado ao executável e `digitador-icon.png` será incluído para a janela do app.
+    *   O arquivo opcional `Igris22 (1).jpg` também será incluído como recurso visual, se estiver presente.
 
 ## Sobre
 

@@ -63,7 +63,8 @@ Para que o Digitador apareça no seu menu de aplicativos:
 
 1. Copie o executável gerado para uma pasta permanente (ex: `/home/seu-usuario/bin/`).
 2. Edite o arquivo `digitador.desktop` ajustando o caminho em `Exec=`.
-3. Copie o arquivo `.desktop` para a pasta de aplicações do sistema:
+3. Edite também `Icon=` para apontar para o caminho absoluto de `digitador-icon-256.png`.
+4. Copie o arquivo `.desktop` para a pasta de aplicações do sistema:
    ```bash
    cp digitador.desktop ~/.local/share/applications/
    ```

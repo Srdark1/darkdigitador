@@ -3,6 +3,14 @@ from tkinter import filedialog, messagebox
 import keyboard
 import threading
 import time
+import os
+import sys
+
+
+def caminho_recurso(nome):
+    """Localiza recursos tanto no código-fonte quanto no executável PyInstaller."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, nome)
 
 
 def digitar_texto():
@@ -34,6 +42,11 @@ janela = tk.Tk()
 janela.title("Digitador Dark Edition")
 janela.geometry("500x400")
 janela.configure(bg="#000")
+try:
+    icone = tk.PhotoImage(file=caminho_recurso("digitador-icon.png"))
+    janela.iconphoto(True, icone)
+except tk.TclError:
+    pass
 
 menu_bar = tk.Menu(janela)
 janela.config(menu=menu_bar)

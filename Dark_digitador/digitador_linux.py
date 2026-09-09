@@ -3,6 +3,14 @@ from tkinter import filedialog, messagebox
 from pynput.keyboard import Controller
 import threading
 import time
+import os
+import sys
+
+
+def caminho_recurso(nome):
+    """Localiza recursos tanto no código-fonte quanto no executável PyInstaller."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, nome)
 
 # Inicializa o controlador do teclado
 keyboard = Controller()
@@ -45,6 +53,11 @@ janela = tk.Tk()
 janela.title("Digitador Dark Edition (Linux)")
 janela.geometry("500x450")
 janela.configure(bg="#000")
+try:
+    icone = tk.PhotoImage(file=caminho_recurso("digitador-icon.png"))
+    janela.iconphoto(True, icone)
+except tk.TclError:
+    pass
 
 # Menu
 menu_bar = tk.Menu(janela)

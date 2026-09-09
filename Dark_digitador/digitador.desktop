@@ -4,6 +4,6 @@ Type=Application
 Name=Digitador Dark Edition
 Comment=Simulador de digitação automática
 Exec=./Digitador_Dark_Linux
-Icon=utilities-terminal
+Icon=/caminho/para/digitador-icon-256.png
 Terminal=false
 Categories=Utility;Development;

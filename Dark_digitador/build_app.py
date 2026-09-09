@@ -19,6 +19,7 @@ def criar_executavel():
     
     # Caminho absoluto da imagem (lida com espaços no nome)
     caminho_imagem = os.path.abspath("Igris22 (1).jpg")
+    caminho_icone = os.path.abspath("digitador-icon.png")
 
     # Comando para criar o executável usando o Python atual
     comando = [
@@ -28,7 +29,8 @@ def criar_executavel():
         "--onefile",  # Cria um único arquivo executável
         "--windowed",  # Não mostra console ao executar
         "--name=Digitador_Dark_Edition",  # Nome do executável
-        "--icon=icon.ico" if os.path.exists("icon.ico") else "",  # Ícone se existir
+        "--icon=digitador-icon.ico" if os.path.exists("digitador-icon.ico") else "",  # Ícone do executável
+        (f"--add-data={caminho_icone};." if os.path.exists(caminho_icone) else ""),
         # Empacota a imagem de fundo (Windows usa ";" como separador de destino)
         (f"--add-data={caminho_imagem};." if os.path.exists(caminho_imagem) else ""),
         "digitador.py"

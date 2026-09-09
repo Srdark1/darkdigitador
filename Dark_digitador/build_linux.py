@@ -23,6 +23,7 @@ def criar_executavel():
         "--onefile",
         "--windowed",
         "--name=Digitador_Dark_Linux",
+        "--add-data=digitador-icon.png:.",
         "digitador_linux.py"
     ]
     
