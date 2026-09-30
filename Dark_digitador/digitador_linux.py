@@ -51,8 +51,11 @@ def sobre():
 # Configuração da Janela Principal
 janela = tk.Tk()
 janela.title("Digitador Dark Edition (Linux)")
-janela.geometry("500x450")
+janela.geometry("560x560")
+janela.minsize(500, 500)
 janela.configure(bg="#000")
+janela.grid_columnconfigure(0, weight=1)
+janela.grid_rowconfigure(0, weight=1)
 try:
     icone = tk.PhotoImage(file=caminho_recurso("digitador-icon.png"))
     janela.iconphoto(True, icone)
@@ -75,16 +78,18 @@ menu_sobre.add_command(label="Sobre o App", command=sobre)
 
 # Interface
 conteudo_frame = tk.Frame(janela, bg="#000", highlightthickness=0, bd=0)
-conteudo_frame.pack(fill="both", expand=True, padx=20, pady=10)
+conteudo_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=10)
+conteudo_frame.grid_columnconfigure(0, weight=1)
+conteudo_frame.grid_rowconfigure(1, weight=1)
 
 label_instrucao = tk.Label(
-    conteudo_frame, 
+    conteudo_frame,
     text="Cole o texto abaixo e clique em começar.\nVocê terá 3 segundos para focar na janela de destino.",
     bg="#000", 
     fg="#fff",
     font=("Arial", 9)
 )
-label_instrucao.pack(pady=(0, 10))
+label_instrucao.grid(row=0, column=0, pady=(0, 10))
 
 campo_texto = tk.Text(
     conteudo_frame,
@@ -95,7 +100,7 @@ campo_texto = tk.Text(
     insertbackground="#8a2be2",
     font=("Courier", 10)
 )
-campo_texto.pack(fill="both", expand=True, pady=10)
+campo_texto.grid(row=1, column=0, sticky="nsew", pady=10)
 
 botao_comecar = tk.Button(
     conteudo_frame,
@@ -108,6 +113,6 @@ botao_comecar = tk.Button(
     font=("Arial", 10, "bold"),
     cursor="hand2"
 )
-botao_comecar.pack(pady=10, fill="x")
+botao_comecar.grid(row=2, column=0, sticky="ew", pady=10)
 
 janela.mainloop()

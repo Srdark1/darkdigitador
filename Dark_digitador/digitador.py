@@ -100,9 +100,11 @@ def sobre():
 
 janela = tk.Tk()
 janela.title("Digitador Dark Edition")
-janela.geometry("760x560")
-janela.minsize(620, 460)
+janela.geometry("760x680")
+janela.minsize(620, 620)
 janela.configure(bg=BG)
+janela.grid_columnconfigure(0, weight=1)
+janela.grid_rowconfigure(1, weight=1)
 try:
     icone = tk.PhotoImage(file=caminho_recurso("digitador-icon.png"))
     janela.iconphoto(True, icone)
@@ -127,7 +129,7 @@ menu_sobre.add_command(label="Sobre o app", command=sobre)
 
 # Cabeçalho
 cabecalho = tk.Frame(janela, bg=BG)
-cabecalho.pack(fill="x", padx=34, pady=(28, 18))
+cabecalho.grid(row=0, column=0, sticky="ew", padx=34, pady=(28, 18))
 tk.Label(cabecalho, text="DIGITADOR", bg=BG, fg=ACCENT, font=("Segoe UI", 10, "bold")).pack(anchor="w")
 tk.Label(cabecalho, text="Dark Edition", bg=BG, fg=TEXT, font=("Segoe UI", 26, "bold")).pack(anchor="w", pady=(2, 0))
 tk.Label(cabecalho, text="Automatize sua digitação com precisão e simplicidade.", bg=BG, fg=MUTED,
@@ -135,28 +137,32 @@ tk.Label(cabecalho, text="Automatize sua digitação com precisão e simplicidad
 
 # Cartão principal
 cartao = tk.Frame(janela, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
-cartao.pack(fill="both", expand=True, padx=34, pady=(0, 18))
+cartao.grid(row=1, column=0, sticky="nsew", padx=34, pady=(0, 14))
+cartao.grid_columnconfigure(0, weight=1)
+cartao.grid_rowconfigure(1, weight=1)
 barra = tk.Frame(cartao, bg=SURFACE)
-barra.pack(fill="x", padx=18, pady=(16, 10))
+barra.grid(row=0, column=0, sticky="ew", padx=18, pady=(16, 10))
 tk.Label(barra, text="Seu texto", bg=SURFACE, fg=TEXT, font=("Segoe UI", 12, "bold")).pack(side="left")
 contador = tk.Label(barra, text="0 caracteres  •  0 palavras", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
 contador.pack(side="right")
 
 editor_frame = tk.Frame(cartao, bg=SURFACE_ALT, highlightbackground=BORDER, highlightthickness=1)
-editor_frame.pack(fill="both", expand=True, padx=18, pady=(0, 14))
+editor_frame.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 14))
+editor_frame.grid_columnconfigure(0, weight=1)
+editor_frame.grid_rowconfigure(0, weight=1)
 campo_texto = tk.Text(editor_frame, bg=SURFACE_ALT, fg=TEXT, insertbackground=ACCENT,
                       selectbackground=ACCENT, selectforeground=TEXT, relief="flat", borderwidth=0,
                       wrap="word", undo=True, font=("Cascadia Mono", 11), padx=14, pady=12,
                       highlightthickness=0)
-campo_texto.pack(side="left", fill="both", expand=True)
+campo_texto.grid(row=0, column=0, sticky="nsew")
 scroll = tk.Scrollbar(editor_frame, command=campo_texto.yview, bg=SURFACE_ALT, troughcolor=SURFACE_ALT,
                       activebackground=ACCENT, relief="flat", width=10)
-scroll.pack(side="right", fill="y")
+scroll.grid(row=0, column=1, sticky="ns")
 campo_texto.config(yscrollcommand=scroll.set)
 campo_texto.bind("<KeyRelease>", atualizar_contador)
 
 rodape_cartao = tk.Frame(cartao, bg=SURFACE)
-rodape_cartao.pack(fill="x", padx=18, pady=(0, 16))
+rodape_cartao.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 16))
 status = tk.Label(rodape_cartao, text="Pronto para digitar", bg=SURFACE, fg=MUTED,
                   font=("Segoe UI", 9))
 status.pack(side="left")
@@ -168,9 +174,9 @@ botao_comecar = tk.Button(janela, text="▶  COMEÇAR A DIGITAR", command=inicia
                           bg=ACCENT, fg=TEXT, activebackground=ACCENT_HOVER, activeforeground=TEXT,
                           disabledforeground="#6e6382", relief="flat", borderwidth=0, cursor="hand2",
                           font=("Segoe UI", 11, "bold"), pady=12)
-botao_comecar.pack(fill="x", padx=34, pady=(0, 10))
+botao_comecar.grid(row=2, column=0, sticky="ew", padx=34, pady=(0, 8))
 tk.Label(janela, text="Você terá 2 segundos para selecionar a janela de destino.", bg=BG, fg=MUTED,
-         font=("Segoe UI", 9)).pack(pady=(0, 20))
+         font=("Segoe UI", 9)).grid(row=3, column=0, pady=(0, 20))
 
 campo_texto.focus_set()
 janela.mainloop()
