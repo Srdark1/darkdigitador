@@ -1,46 +1,62 @@
+from pathlib import Path
+import os
 import subprocess
 import sys
-import os
+
+
+ROOT = Path(__file__).resolve().parent
+ENTRYPOINT = ROOT / "digitador_linux.py"
+PNG_ICON = ROOT / "digitador-icon.png"
+REQUIREMENTS = ROOT / "requirements_linux.txt"
+DIST = ROOT / "dist"
+
+
+def executar(comando):
+    print("$", " ".join(map(str, comando)))
+    subprocess.check_call(comando, cwd=ROOT)
+
 
 def instalar_dependencias():
-    """Instala as dependências necessárias para o build"""
-    print("Instalando dependências de build...")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller", "pynput"])
-        print("Dependências instaladas com sucesso!")
-    except Exception as e:
-        print(f"Erro ao instalar dependências: {e}")
+    """Instala as dependências fixadas da versão Linux e do PyInstaller."""
+    executar([sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS)])
+    executar([sys.executable, "-m", "pip", "install", "pyinstaller==6.3.0"])
+
 
 def criar_executavel():
-    """Cria o executável do digitador para Linux"""
-    print("Criando executável do Digitador Dark Edition (Linux)...")
-    
-    # Comando para criar o executável
+    """Gera o executável Linux a partir do código atual."""
+    if not ENTRYPOINT.exists():
+        raise FileNotFoundError(f"Arquivo principal não encontrado: {ENTRYPOINT}")
+
+    nome = "Digitador_Dark_Linux"
     comando = [
         sys.executable,
         "-m",
         "PyInstaller",
+        "--noconfirm",
+        "--clean",
         "--onefile",
         "--windowed",
-        "--name=Digitador_Dark_Linux",
-        "--add-data=digitador-icon.png:.",
-        "digitador_linux.py"
+        f"--name={nome}",
     ]
-    
-    try:
-        subprocess.check_call(comando)
-        print("\n✅ Executável Linux criado com sucesso!")
-        print("📁 Arquivo: dist/Digitador_Dark_Linux")
-        print("🎉 Você pode rodar o arquivo na pasta dist diretamente!")
-        
-        # Tornar o arquivo executável (comando linux)
-        if os.path.exists("dist/Digitador_Dark_Linux"):
-            os.chmod("dist/Digitador_Dark_Linux", 0o755)
-            print("🔑 Permissões de execução aplicadas.")
-            
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Erro ao criar executável: {e}")
+    if PNG_ICON.exists():
+        comando.append(f"--add-data={PNG_ICON}{os.pathsep}.")
+    comando.append(str(ENTRYPOINT))
+
+    executar(comando)
+
+    executavel = DIST / nome
+    if not executavel.exists():
+        raise RuntimeError(f"O build terminou sem gerar: {executavel}")
+    executavel.chmod(executavel.stat().st_mode | 0o111)
+
+    print(f"\nExecutável Linux criado com sucesso: {executavel}")
+    print(f"Tamanho: {executavel.stat().st_size:,} bytes")
+
 
 if __name__ == "__main__":
-    instalar_dependencias()
-    criar_executavel()
+    try:
+        instalar_dependencias()
+        criar_executavel()
+    except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as erro:
+        print(f"\nERRO no build: {erro}", file=sys.stderr)
+        raise SystemExit(1)

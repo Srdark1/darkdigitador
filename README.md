@@ -50,7 +50,7 @@ Siga os passos abaixo para configurar e executar o projeto:
 
 ## Construindo o Executável (Windows)
 
-O projeto inclui um script `build_app.py` para criar um executável Windows usando `PyInstaller`.
+O projeto inclui um script `build_app.py` para criar um executável Windows usando `PyInstaller`. O script usa os arquivos atuais do repositório, limpa o build anterior e verifica se o executável foi realmente criado.
 
 1.  **Navegue até a pasta `Dark_digitador`:**
     ```bash
@@ -62,12 +62,25 @@ O projeto inclui um script `build_app.py` para criar um executável Windows usan
     python build_app.py
     ```
 
-    Este script irá:
-    *   Verificar e instalar o `PyInstaller` se necessário.
-    *   Compilar o `digitador.py` em um executável `Digitador_Dark_Edition.exe` na pasta `dist`.
-    *   O executável será `onefile` (arquivo único) e `windowed` (sem console).
-    *   O ícone `digitador-icon.ico` será aplicado ao executável e `digitador-icon.png` será incluído para a janela do app.
-    *   O arquivo opcional `Igris22 (1).jpg` também será incluído como recurso visual, se estiver presente.
+    O executável será criado em `Dark_digitador/dist/Digitador_Dark_Edition.exe`.
+
+## Build automático pelo GitHub
+
+O workflow `.github/workflows/build.yml` é executado automaticamente a cada push na branch `main` e também pode ser iniciado manualmente em **Actions > Build executables > Run workflow**.
+
+Ao terminar, os arquivos ficam disponíveis na área **Artifacts** da execução:
+
+* `Digitador-Dark-Windows`: executável `.exe` atualizado.
+* `Digitador-Dark-Linux`: executável Linux atualizado.
+
+Para a versão Linux, execute localmente:
+
+```bash
+cd darkdigitador/Dark_digitador
+python3 build_linux.py
+```
+
+O arquivo será criado em `Dark_digitador/dist/Digitador_Dark_Linux`.
 
 ## Sobre
 
