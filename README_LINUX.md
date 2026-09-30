@@ -49,7 +49,13 @@ Desenvolvido por Srdark1. Adaptado para Linux por Manus AI.
 
 ## Criando um Executável (App)
 
-Para transformar o script em um arquivo executável único que você pode levar para qualquer lugar:
+Para transformar o script em um arquivo executável único que você pode levar para qualquer lugar, instale também os headers de desenvolvimento usados pelo `pynput`/`evdev`:
+
+```bash
+sudo apt-get install python3-dev build-essential
+```
+
+Depois, gere o arquivo executável:
 
 1. Execute o script de build:
    ```bash
