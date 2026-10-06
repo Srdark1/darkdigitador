@@ -45,7 +45,7 @@ def finalizar_digitacao():
 
 def digitar_texto(texto):
     definir_status("Mude para a janela de destino...", WARNING)
-    for segundos in (2, 1):
+    for segundos in range(5, 0, -1):
         definir_status(f"Começando em {segundos} segundo{'s' if segundos != 1 else ''}...", WARNING)
         time.sleep(1)
 
@@ -143,8 +143,14 @@ cartao.grid_rowconfigure(1, weight=1)
 barra = tk.Frame(cartao, bg=SURFACE)
 barra.grid(row=0, column=0, sticky="ew", padx=18, pady=(16, 10))
 tk.Label(barra, text="Seu texto", bg=SURFACE, fg=TEXT, font=("Segoe UI", 12, "bold")).pack(side="left")
-contador = tk.Label(barra, text="0 caracteres  •  0 palavras", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
-contador.pack(side="right")
+acoes_barra = tk.Frame(barra, bg=SURFACE)
+acoes_barra.pack(side="right")
+contador = tk.Label(acoes_barra, text="0 caracteres  •  0 palavras", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
+contador.pack(side="left", padx=(0, 14))
+tk.Button(acoes_barra, text="APAGAR TEXTO", command=limpar_texto, bg=SURFACE_ALT, fg=TEXT,
+          activebackground=ACCENT, activeforeground=TEXT, relief="flat", borderwidth=0,
+          highlightbackground=BORDER, highlightthickness=1, cursor="hand2",
+          font=("Segoe UI", 9, "bold"), padx=10, pady=4).pack(side="right")
 
 editor_frame = tk.Frame(cartao, bg=SURFACE_ALT, highlightbackground=BORDER, highlightthickness=1)
 editor_frame.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 14))
@@ -166,16 +172,13 @@ rodape_cartao.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 16))
 status = tk.Label(rodape_cartao, text="Pronto para digitar", bg=SURFACE, fg=MUTED,
                   font=("Segoe UI", 9))
 status.pack(side="left")
-tk.Button(rodape_cartao, text="Limpar", command=limpar_texto, bg=SURFACE, fg=MUTED,
-          activebackground=SURFACE_ALT, activeforeground=TEXT, relief="flat", borderwidth=0,
-          cursor="hand2", font=("Segoe UI", 9)).pack(side="right")
 
 botao_comecar = tk.Button(janela, text="▶  COMEÇAR A DIGITAR", command=iniciar_digitacao,
                           bg=ACCENT, fg=TEXT, activebackground=ACCENT_HOVER, activeforeground=TEXT,
                           disabledforeground="#6e6382", relief="flat", borderwidth=0, cursor="hand2",
                           font=("Segoe UI", 11, "bold"), pady=12)
 botao_comecar.grid(row=2, column=0, sticky="ew", padx=34, pady=(0, 8))
-tk.Label(janela, text="Você terá 2 segundos para selecionar a janela de destino.", bg=BG, fg=MUTED,
+tk.Label(janela, text="Você terá 5 segundos para selecionar a janela de destino.", bg=BG, fg=MUTED,
          font=("Segoe UI", 9)).grid(row=3, column=0, pady=(0, 20))
 
 campo_texto.focus_set()
