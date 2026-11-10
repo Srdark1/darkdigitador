@@ -14,6 +14,7 @@ def caminho_recurso(nome):
 
 # Inicializa o controlador do teclado
 keyboard = Controller()
+parar_evento = threading.Event()
 
 def digitar_texto():
     texto = campo_texto.get("1.0", tk.END)
@@ -21,10 +22,17 @@ def digitar_texto():
     if texto.endswith('\n'):
         texto = texto[:-1]
         
-    time.sleep(3)  # 3 segundos para o usuário mudar de janela
+    for _ in range(3):
+        if parar_evento.is_set():
+            janela.after(0, finalizar_digitacao)
+            return
+        time.sleep(1)  # tempo para o usuário mudar de janela
     
     for caractere in texto:
         try:
+            if parar_evento.is_set():
+                janela.after(0, finalizar_digitacao)
+                return
             keyboard.type(caractere)
             # Um pequeno delay para simular digitação humana e evitar bloqueios
             time.sleep(0.05)
@@ -32,7 +40,17 @@ def digitar_texto():
             print(f"Erro ao digitar caractere: {e}")
 
 def iniciar_digitacao():
+    parar_evento.clear()
+    botao_comecar.config(state="disabled", text="PREPARANDO...")
+    botao_parar.config(state="normal")
     threading.Thread(target=digitar_texto, daemon=True).start()
+
+def finalizar_digitacao():
+    botao_comecar.config(state="normal", text="INICIAR DIGITAÇÃO AUTOMÁTICA")
+    botao_parar.config(state="disabled")
+
+def parar_digitacao():
+    parar_evento.set()
 
 def abrir_arquivo():
     caminho = filedialog.askopenfilename(filetypes=[("Arquivos de texto", "*.txt")])
@@ -53,7 +71,7 @@ janela = tk.Tk()
 janela.title("Digitador Dark Edition (Linux)")
 janela.geometry("560x560")
 janela.minsize(500, 500)
-janela.configure(bg="#000")
+janela.configure(bg="#0b0b12")
 janela.grid_columnconfigure(0, weight=1)
 janela.grid_rowconfigure(0, weight=1)
 try:
@@ -77,7 +95,7 @@ menu_bar.add_cascade(label="Sobre", menu=menu_sobre)
 menu_sobre.add_command(label="Sobre o App", command=sobre)
 
 # Interface
-conteudo_frame = tk.Frame(janela, bg="#000", highlightthickness=0, bd=0)
+conteudo_frame = tk.Frame(janela, bg="#0b0b12", highlightthickness=0, bd=0)
 conteudo_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=10)
 conteudo_frame.grid_columnconfigure(0, weight=1)
 conteudo_frame.grid_rowconfigure(1, weight=1)
@@ -85,8 +103,8 @@ conteudo_frame.grid_rowconfigure(1, weight=1)
 label_instrucao = tk.Label(
     conteudo_frame,
     text="Cole o texto abaixo e clique em começar.\nVocê terá 3 segundos para focar na janela de destino.",
-    bg="#000", 
-    fg="#fff",
+    bg="#0b0b12",
+    fg="#f4f4fb",
     font=("Arial", 9)
 )
 label_instrucao.grid(row=0, column=0, pady=(0, 10))
@@ -95,24 +113,44 @@ campo_texto = tk.Text(
     conteudo_frame,
     height=12,
     width=55,
-    bg="#111",
-    fg="#8a2be2",  # Roxo Dark
-    insertbackground="#8a2be2",
+    bg="#141421",
+    fg="#f4f4fb",
+    insertbackground="#9b5cff",
     font=("Courier", 10)
 )
 campo_texto.grid(row=1, column=0, sticky="nsew", pady=10)
 
+acoes_principais = tk.Frame(conteudo_frame, bg="#0b0b12")
+acoes_principais.grid(row=2, column=0, sticky="ew", pady=10)
+acoes_principais.grid_columnconfigure(0, weight=1)
+
 botao_comecar = tk.Button(
-    conteudo_frame,
+    acoes_principais,
     text="INICIAR DIGITAÇÃO AUTOMÁTICA",
     command=iniciar_digitacao,
-    bg="#222",
+    bg="#9b5cff",
     fg="#fff",
-    activebackground="#8a2be2",
-    activeforeground="#000",
+    activebackground="#ad78ff",
+    activeforeground="#fff",
     font=("Arial", 10, "bold"),
     cursor="hand2"
 )
-botao_comecar.grid(row=2, column=0, sticky="ew", pady=10)
+botao_comecar.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+botao_parar = tk.Button(
+    acoes_principais,
+    text="■  PARAR",
+    command=parar_digitacao,
+    bg="#d64f6a",
+    fg="#fff",
+    activebackground="#ef6b82",
+    activeforeground="#fff",
+    state="disabled",
+    font=("Arial", 10, "bold"),
+    cursor="hand2",
+    padx=18,
+    pady=8,
+)
+botao_parar.grid(row=0, column=1)
 
 janela.mainloop()

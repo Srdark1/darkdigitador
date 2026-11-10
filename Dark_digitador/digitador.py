@@ -19,6 +19,10 @@ ACCENT = "#9b5cff"
 ACCENT_HOVER = "#ad78ff"
 SUCCESS = "#55d6a7"
 WARNING = "#ffc857"
+STOP = "#d64f6a"
+STOP_HOVER = "#ef6b82"
+
+parar_evento = threading.Event()
 
 
 def caminho_recurso(nome):
@@ -40,17 +44,26 @@ def definir_status(texto, cor=MUTED):
 
 def finalizar_digitacao():
     botao_comecar.config(state="normal", text="▶  COMEÇAR A DIGITAR")
+    botao_parar.config(state="disabled")
     definir_status("Pronto para digitar", MUTED)
 
 
 def digitar_texto(texto):
     definir_status("Mude para a janela de destino...", WARNING)
     for segundos in range(5, 0, -1):
+        if parar_evento.is_set():
+            janela.after(0, finalizar_digitacao)
+            definir_status("Digitação parada", WARNING)
+            return
         definir_status(f"Começando em {segundos} segundo{'s' if segundos != 1 else ''}...", WARNING)
         time.sleep(1)
 
     definir_status("Digitando seu texto...", ACCENT)
     for caractere in texto:
+        if parar_evento.is_set():
+            janela.after(0, finalizar_digitacao)
+            definir_status("Digitação parada", WARNING)
+            return
         keyboard.write(caractere)
         time.sleep(0.05)
 
@@ -64,8 +77,16 @@ def iniciar_digitacao():
         campo_texto.focus_set()
         return
 
+    parar_evento.clear()
     botao_comecar.config(state="disabled", text="⌛  PREPARANDO...")
+    botao_parar.config(state="normal")
     threading.Thread(target=digitar_texto, args=(texto,), daemon=True).start()
+
+
+def parar_digitacao():
+    if botao_comecar["state"] == "disabled":
+        parar_evento.set()
+        definir_status("Parando a digitação...", WARNING)
 
 
 def abrir_arquivo():
@@ -173,11 +194,23 @@ status = tk.Label(rodape_cartao, text="Pronto para digitar", bg=SURFACE, fg=MUTE
                   font=("Segoe UI", 9))
 status.pack(side="left")
 
-botao_comecar = tk.Button(janela, text="▶  COMEÇAR A DIGITAR", command=iniciar_digitacao,
+acoes_principais = tk.Frame(janela, bg=BG)
+acoes_principais.grid(row=2, column=0, sticky="ew", padx=34, pady=(0, 8))
+acoes_principais.grid_columnconfigure(0, weight=1)
+acoes_principais.grid_columnconfigure(1, weight=0)
+
+botao_comecar = tk.Button(acoes_principais, text="▶  COMEÇAR A DIGITAR", command=iniciar_digitacao,
                           bg=ACCENT, fg=TEXT, activebackground=ACCENT_HOVER, activeforeground=TEXT,
                           disabledforeground="#6e6382", relief="flat", borderwidth=0, cursor="hand2",
                           font=("Segoe UI", 11, "bold"), pady=12)
-botao_comecar.grid(row=2, column=0, sticky="ew", padx=34, pady=(0, 8))
+botao_comecar.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+botao_parar = tk.Button(acoes_principais, text="■  PARAR", command=parar_digitacao,
+                        bg=STOP, fg=TEXT, activebackground=STOP_HOVER, activeforeground=TEXT,
+                        disabledforeground="#6e5b63", relief="flat", borderwidth=0,
+                        cursor="hand2", state="disabled", font=("Segoe UI", 10, "bold"),
+                        padx=20, pady=13)
+botao_parar.grid(row=0, column=1)
 tk.Label(janela, text="Você terá 5 segundos para selecionar a janela de destino.", bg=BG, fg=MUTED,
          font=("Segoe UI", 9)).grid(row=3, column=0, pady=(0, 20))
 
