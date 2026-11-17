@@ -8,7 +8,7 @@ from tkinter import filedialog, messagebox
 import keyboard
 
 
-# Paleta visual do aplicativo
+# Paleta visual do Digitador Dark Edition
 BG = "#0b0b12"
 SURFACE = "#141421"
 SURFACE_ALT = "#1b1b2a"
@@ -23,10 +23,14 @@ STOP = "#d64f6a"
 STOP_HOVER = "#ef6b82"
 
 parar_evento = threading.Event()
+pause_evento = threading.Event()
+pausa_inicial_cancelada = threading.Event()
+rodando = False
+texto_atual = ""
+arquivo_atual = None
 
 
 def caminho_recurso(nome):
-    """Localiza recursos tanto no código-fonte quanto no executável PyInstaller."""
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, nome)
 
@@ -35,184 +39,365 @@ def atualizar_contador(_event=None):
     conteudo = campo_texto.get("1.0", "end-1c")
     caracteres = len(conteudo)
     palavras = len(conteudo.split())
-    contador.config(text=f"{caracteres:,} caracteres  •  {palavras:,} palavras")
+    contador.config(text=f"{caracteres:,} caracteres • {palavras:,} palavras")
+    atualizar_estimativa()
+
+
+def atualizar_estimativa():
+    texto = campo_texto.get("1.0", "end-1c")
+    try:
+        intervalo = max(0, float(intervalo_var.get())) / 1000
+        atraso = max(0, float(atraso_var.get()))
+        pausa_linha = max(0, float(pausa_linha_var.get())) / 1000
+    except ValueError:
+        return
+    linhas = texto.count("\n") if preservar_var.get() else 0
+    segundos = atraso + (len(texto) * intervalo) + (linhas * pausa_linha)
+    exec_duracao.config(text=formatar_tempo(segundos) if texto else "—")
+    velocidade = int(1 / intervalo) if intervalo > 0 else 0
+    velocidade_label.config(text=f"Velocidade estimada: {velocidade:,} caracteres/s" if velocidade else "Velocidade máxima")
+
+
+def formatar_tempo(segundos):
+    segundos = max(0, int(round(segundos)))
+    return f"{segundos // 60:02d}:{segundos % 60:02d}"
 
 
 def definir_status(texto, cor=MUTED):
     janela.after(0, lambda: status.config(text=texto, fg=cor))
 
 
-def finalizar_digitacao():
+def atualizar_execucao(enviados, total, decorrido=None, destino=None):
+    def atualizar():
+        exec_caracteres.config(text=f"{enviados:,} / {total:,}")
+        if decorrido is not None:
+            exec_tempo.config(text=formatar_tempo(decorrido))
+            restante = max(0, total - enviados) * max(0.001, float(intervalo_var.get()) / 1000)
+            exec_restante.config(text=formatar_tempo(restante))
+        if destino:
+            exec_destino.config(text=destino)
+        progresso.set((enviados / total) if total else 0)
+        progresso_barra.coords("fill", 0, 0, progresso.get() * progresso_barra.winfo_width(), 6)
+        progresso_label.config(text=f"{enviados:,} de {total:,} caracteres enviados • {int((enviados / total) * 100) if total else 0}% concluído")
+    janela.after(0, atualizar)
+
+
+def finalizar_digitacao(mensagem="Pronto para digitar", cor=MUTED):
+    global rodando
+    rodando = False
+    campo_texto.config(state="normal")
     botao_comecar.config(state="normal", text="▶  COMEÇAR A DIGITAR")
+    botao_pausar.config(state="disabled", text="Ⅱ  PAUSAR")
     botao_parar.config(state="disabled")
-    definir_status("Pronto para digitar", MUTED)
+    abrir_botao.config(state="normal")
+    apagar_botao.config(state="normal")
+    for widget in controles:
+        widget.config(state="normal")
+    definir_status(mensagem, cor)
+    janela.after(0, lambda: modo_label.config(text="Modelo avançado  /  Editor pronto", fg=MUTED))
 
 
-def digitar_texto(texto):
-    definir_status("Mude para a janela de destino...", WARNING)
-    for segundos in range(5, 0, -1):
+def aguardar_com_cancelamento(segundos):
+    fim = time.time() + segundos
+    while time.time() < fim:
         if parar_evento.is_set():
-            janela.after(0, finalizar_digitacao)
-            definir_status("Digitação parada", WARNING)
-            return
-        definir_status(f"Começando em {segundos} segundo{'s' if segundos != 1 else ''}...", WARNING)
-        time.sleep(1)
+            return False
+        time.sleep(min(0.05, fim - time.time()))
+    return True
 
-    definir_status("Digitando seu texto...", ACCENT)
-    for caractere in texto:
+
+def digitar_texto(texto, intervalo, atraso, pausa_linha, preservar):
+    total = len(texto)
+    inicio = time.time()
+    definir_status("Selecione a janela de destino agora", WARNING)
+    janela.after(0, lambda: modo_label.config(text="Modelo avançado  /  Contagem regressiva", fg=WARNING))
+
+    for segundos in range(int(atraso), 0, -1):
         if parar_evento.is_set():
-            janela.after(0, finalizar_digitacao)
-            definir_status("Digitação parada", WARNING)
+            janela.after(0, finalizar_digitacao, "Início cancelado", WARNING)
             return
-        keyboard.write(caractere)
-        time.sleep(0.05)
+        definir_status(f"Iniciando em {segundos} segundo{'s' if segundos != 1 else ''}", WARNING)
+        janela.after(0, lambda s=segundos: contagem_label.config(text=str(s)))
+        if not aguardar_com_cancelamento(1):
+            janela.after(0, finalizar_digitacao, "Início cancelado", WARNING)
+            return
 
-    janela.after(0, finalizar_digitacao)
+    janela.after(0, lambda: contagem_label.config(text="⌨"))
+    definir_status("Digite mantendo a janela de destino em foco", ACCENT)
+    janela.after(0, lambda: modo_label.config(text="Modelo avançado  /  Em execução", fg=SUCCESS))
+
+    enviados = 0
+    for indice, caractere in enumerate(texto):
+        while pause_evento.is_set() and not parar_evento.is_set():
+            definir_status("Digitação pausada", WARNING)
+            time.sleep(0.1)
+        if parar_evento.is_set():
+            janela.after(0, finalizar_digitacao, "Digitação interrompida", WARNING)
+            return
+        try:
+            keyboard.write(caractere)
+        except Exception as erro:
+            janela.after(0, finalizar_digitacao, f"Erro ao digitar: {erro}", STOP)
+            return
+        enviados = indice + 1
+        decorrido = time.time() - inicio
+        atualizar_execucao(enviados, total, decorrido, "Janela selecionada")
+        if preservar and caractere == "\n" and pausa_linha > 0:
+            if not aguardar_com_cancelamento(pausa_linha):
+                janela.after(0, finalizar_digitacao, "Digitação interrompida", WARNING)
+                return
+        elif intervalo > 0 and not aguardar_com_cancelamento(intervalo):
+            janela.after(0, finalizar_digitacao, "Digitação interrompida", WARNING)
+            return
+
+    atualizar_execucao(total, total, time.time() - inicio, "Concluído")
+    janela.after(0, finalizar_digitacao, "Digitação concluída", SUCCESS)
 
 
 def iniciar_digitacao():
-    texto = campo_texto.get("1.0", "end-1c")
-    if not texto.strip():
+    global rodando, texto_atual
+    texto_atual = campo_texto.get("1.0", "end-1c")
+    if not texto_atual.strip():
         definir_status("Digite ou carregue um texto antes de começar", WARNING)
         campo_texto.focus_set()
         return
+    try:
+        intervalo = max(0, float(intervalo_var.get())) / 1000
+        atraso = max(0, float(atraso_var.get()))
+        pausa_linha = max(0, float(pausa_linha_var.get())) / 1000
+    except ValueError:
+        definir_status("Confira os valores dos ajustes de digitação", WARNING)
+        return
 
+    rodando = True
     parar_evento.clear()
+    pause_evento.clear()
+    campo_texto.config(state="disabled")
     botao_comecar.config(state="disabled", text="⌛  PREPARANDO...")
+    botao_pausar.config(state="normal", text="Ⅱ  PAUSAR")
     botao_parar.config(state="normal")
-    threading.Thread(target=digitar_texto, args=(texto,), daemon=True).start()
+    abrir_botao.config(state="disabled")
+    apagar_botao.config(state="disabled")
+    for widget in controles:
+        widget.config(state="disabled")
+    exec_caracteres.config(text=f"0 / {len(texto_atual):,}")
+    exec_tempo.config(text="00:00")
+    exec_restante.config(text="—")
+    progresso.set(0)
+    progresso_barra.coords("fill", 0, 0, 0, 6)
+    progresso_label.config(text=f"0 de {len(texto_atual):,} caracteres enviados • 0% concluído")
+    threading.Thread(target=digitar_texto, args=(texto_atual, intervalo, atraso, pausa_linha, preservar_var.get()), daemon=True).start()
+
+
+def alternar_pausa():
+    if not rodando:
+        return
+    if pause_evento.is_set():
+        pause_evento.clear()
+        botao_pausar.config(text="Ⅱ  PAUSAR")
+        definir_status("Digitação retomada", ACCENT)
+    else:
+        pause_evento.set()
+        botao_pausar.config(text="▶  RETOMAR")
+        definir_status("Digitação pausada", WARNING)
 
 
 def parar_digitacao():
-    if botao_comecar["state"] == "disabled":
+    if rodando:
         parar_evento.set()
-        definir_status("Parando a digitação...", WARNING)
+        pause_evento.clear()
+        definir_status("Interrompendo a digitação...", WARNING)
 
 
 def abrir_arquivo():
-    caminho = filedialog.askopenfilename(
-        title="Abrir arquivo de texto",
-        filetypes=[("Arquivos de texto", "*.txt"), ("Todos os arquivos", "*.*")],
-    )
+    global arquivo_atual
+    caminho = filedialog.askopenfilename(title="Abrir arquivo de texto", filetypes=[("Arquivos de texto", "*.txt"), ("Todos os arquivos", "*.*")])
     if caminho:
         try:
             with open(caminho, "r", encoding="utf-8") as arquivo:
+                campo_texto.config(state="normal")
                 campo_texto.delete("1.0", tk.END)
                 campo_texto.insert("1.0", arquivo.read())
+                arquivo_atual = os.path.basename(caminho)
+                arquivo_nome.config(text=arquivo_atual, fg=SUCCESS)
                 atualizar_contador()
-                definir_status(f"Arquivo carregado: {os.path.basename(caminho)}", SUCCESS)
+                definir_status("Texto carregado. Tudo pronto para começar.", SUCCESS)
         except (OSError, UnicodeDecodeError) as erro:
             messagebox.showerror("Não foi possível abrir", str(erro))
 
 
 def limpar_texto():
+    campo_texto.config(state="normal")
     campo_texto.delete("1.0", tk.END)
+    arquivo_nome.config(text="Nenhum arquivo", fg=MUTED)
     atualizar_contador()
     definir_status("Área de texto limpa", MUTED)
     campo_texto.focus_set()
 
 
 def sobre():
-    messagebox.showinfo(
-        "Sobre o Digitador Dark Edition",
-        "Digitador Dark Edition v3.0\n\nDigite textos automaticamente, caractere por caractere.",
-    )
+    messagebox.showinfo("Sobre o Digitador Dark Edition", "Digitador Dark Edition v4.0\n\nDigitação automática com controles avançados, progresso, pausa e interrupção.")
+
+
+def fechar_janela():
+    parar_evento.set()
+    janela.destroy()
 
 
 janela = tk.Tk()
 janela.title("Digitador Dark Edition")
-janela.geometry("760x680")
-janela.minsize(620, 620)
+janela.geometry("1180x780")
+janela.minsize(900, 680)
 janela.configure(bg=BG)
 janela.grid_columnconfigure(0, weight=1)
 janela.grid_rowconfigure(1, weight=1)
+janela.protocol("WM_DELETE_WINDOW", fechar_janela)
 try:
     icone = tk.PhotoImage(file=caminho_recurso("digitador-icon.png"))
     janela.iconphoto(True, icone)
 except tk.TclError:
     pass
 
-# Menu discreto, com as mesmas ações do app original
-menu_bar = tk.Menu(janela, bg=SURFACE, fg=TEXT, activebackground=ACCENT, activeforeground=TEXT,
-                   borderwidth=0, relief="flat")
+menu_bar = tk.Menu(janela, bg=SURFACE, fg=TEXT, activebackground=ACCENT, activeforeground=TEXT, borderwidth=0, relief="flat")
 janela.config(menu=menu_bar)
-menu_arquivo = tk.Menu(menu_bar, tearoff=0, bg=SURFACE, fg=TEXT, activebackground=ACCENT,
-                       activeforeground=TEXT, borderwidth=0)
+menu_arquivo = tk.Menu(menu_bar, tearoff=0, bg=SURFACE, fg=TEXT, activebackground=ACCENT, activeforeground=TEXT, borderwidth=0)
 menu_bar.add_cascade(label="Arquivo", menu=menu_arquivo)
 menu_arquivo.add_command(label="Abrir arquivo...", command=abrir_arquivo)
 menu_arquivo.add_command(label="Limpar texto", command=limpar_texto)
 menu_arquivo.add_separator()
-menu_arquivo.add_command(label="Sair", command=janela.destroy)
-menu_sobre = tk.Menu(menu_bar, tearoff=0, bg=SURFACE, fg=TEXT, activebackground=ACCENT,
-                     activeforeground=TEXT, borderwidth=0)
+menu_arquivo.add_command(label="Sair", command=fechar_janela)
+menu_sobre = tk.Menu(menu_bar, tearoff=0, bg=SURFACE, fg=TEXT, activebackground=ACCENT, activeforeground=TEXT, borderwidth=0)
 menu_bar.add_cascade(label="Sobre", menu=menu_sobre)
 menu_sobre.add_command(label="Sobre o app", command=sobre)
 
 # Cabeçalho
 cabecalho = tk.Frame(janela, bg=BG)
-cabecalho.grid(row=0, column=0, sticky="ew", padx=34, pady=(28, 18))
-tk.Label(cabecalho, text="DIGITADOR", bg=BG, fg=ACCENT, font=("Segoe UI", 10, "bold")).pack(anchor="w")
-tk.Label(cabecalho, text="Dark Edition", bg=BG, fg=TEXT, font=("Segoe UI", 26, "bold")).pack(anchor="w", pady=(2, 0))
-tk.Label(cabecalho, text="Automatize sua digitação com precisão e simplicidade.", bg=BG, fg=MUTED,
-         font=("Segoe UI", 10)).pack(anchor="w", pady=(4, 0))
+cabecalho.grid(row=0, column=0, sticky="ew", padx=46, pady=(28, 18))
+tk.Label(cabecalho, text="DIGITADOR", bg=BG, fg=ACCENT, font=("Segoe UI", 23, "bold")).pack(side="left")
+tk.Label(cabecalho, text=" Dark Edition", bg=BG, fg=TEXT, font=("Segoe UI", 23, "bold")).pack(side="left")
+tk.Label(cabecalho, text="Automatize sua digitação com precisão e simplicidade.", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(side="left", padx=(24, 0), pady=(8, 0))
+modo = tk.Frame(cabecalho, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
+modo.pack(side="right")
+tk.Label(modo, text="Simples", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9), padx=20, pady=9).pack(side="left")
+tk.Label(modo, text="Avançado", bg=SURFACE_ALT, fg=TEXT, font=("Segoe UI", 9, "bold"), padx=20, pady=9).pack(side="left")
 
-# Cartão principal
-cartao = tk.Frame(janela, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
-cartao.grid(row=1, column=0, sticky="nsew", padx=34, pady=(0, 14))
+# Área central com editor e painel lateral
+principal = tk.Frame(janela, bg=BG)
+principal.grid(row=1, column=0, sticky="nsew", padx=46)
+principal.grid_columnconfigure(0, weight=3)
+principal.grid_columnconfigure(1, weight=1)
+principal.grid_rowconfigure(0, weight=1)
+
+cartao = tk.Frame(principal, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
+cartao.grid(row=0, column=0, sticky="nsew", padx=(0, 22))
 cartao.grid_columnconfigure(0, weight=1)
 cartao.grid_rowconfigure(1, weight=1)
 barra = tk.Frame(cartao, bg=SURFACE)
-barra.grid(row=0, column=0, sticky="ew", padx=18, pady=(16, 10))
-tk.Label(barra, text="Seu texto", bg=SURFACE, fg=TEXT, font=("Segoe UI", 12, "bold")).pack(side="left")
-acoes_barra = tk.Frame(barra, bg=SURFACE)
-acoes_barra.pack(side="right")
-contador = tk.Label(acoes_barra, text="0 caracteres  •  0 palavras", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
-contador.pack(side="left", padx=(0, 14))
-tk.Button(acoes_barra, text="APAGAR TEXTO", command=limpar_texto, bg=SURFACE_ALT, fg=TEXT,
-          activebackground=ACCENT, activeforeground=TEXT, relief="flat", borderwidth=0,
-          highlightbackground=BORDER, highlightthickness=1, cursor="hand2",
-          font=("Segoe UI", 9, "bold"), padx=10, pady=4).pack(side="right")
-
-editor_frame = tk.Frame(cartao, bg=SURFACE_ALT, highlightbackground=BORDER, highlightthickness=1)
-editor_frame.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 14))
+barra.grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 12))
+tk.Label(barra, text="▧  Seu texto", bg=SURFACE, fg=TEXT, font=("Segoe UI", 12, "bold")).pack(side="left")
+contador = tk.Label(barra, text="0 caracteres • 0 palavras", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
+contador.pack(side="right")
+editor_frame = tk.Frame(cartao, bg="#080810", highlightbackground=BORDER, highlightthickness=1)
+editor_frame.grid(row=1, column=0, sticky="nsew", padx=22, pady=(0, 12))
 editor_frame.grid_columnconfigure(0, weight=1)
 editor_frame.grid_rowconfigure(0, weight=1)
-campo_texto = tk.Text(editor_frame, bg=SURFACE_ALT, fg=TEXT, insertbackground=ACCENT,
-                      selectbackground=ACCENT, selectforeground=TEXT, relief="flat", borderwidth=0,
-                      wrap="word", undo=True, font=("Cascadia Mono", 11), padx=14, pady=12,
-                      highlightthickness=0)
+campo_texto = tk.Text(editor_frame, bg="#080810", fg=TEXT, insertbackground=ACCENT, selectbackground=ACCENT, selectforeground=TEXT, relief="flat", borderwidth=0, wrap="word", undo=True, font=("Cascadia Mono", 11), padx=16, pady=14)
 campo_texto.grid(row=0, column=0, sticky="nsew")
-scroll = tk.Scrollbar(editor_frame, command=campo_texto.yview, bg=SURFACE_ALT, troughcolor=SURFACE_ALT,
-                      activebackground=ACCENT, relief="flat", width=10)
+scroll = tk.Scrollbar(editor_frame, command=campo_texto.yview, bg="#080810", troughcolor="#080810", activebackground=ACCENT, relief="flat", width=10)
 scroll.grid(row=0, column=1, sticky="ns")
 campo_texto.config(yscrollcommand=scroll.set)
 campo_texto.bind("<KeyRelease>", atualizar_contador)
-
 rodape_cartao = tk.Frame(cartao, bg=SURFACE)
-rodape_cartao.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 16))
-status = tk.Label(rodape_cartao, text="Pronto para digitar", bg=SURFACE, fg=MUTED,
-                  font=("Segoe UI", 9))
-status.pack(side="left")
+rodape_cartao.grid(row=2, column=0, sticky="ew", padx=22, pady=(0, 18))
+abrir_botao = tk.Button(rodape_cartao, text="▱  ABRIR ARQUIVO", command=abrir_arquivo, bg=SURFACE_ALT, fg=TEXT, activebackground=ACCENT, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 9, "bold"), padx=12, pady=7)
+abrir_botao.pack(side="left")
+apagar_botao = tk.Button(rodape_cartao, text="▱  APAGAR TEXTO", command=limpar_texto, bg=SURFACE_ALT, fg=TEXT, activebackground=ACCENT, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 9, "bold"), padx=12, pady=7)
+apagar_botao.pack(side="left", padx=(8, 0))
+arquivo_nome = tk.Label(rodape_cartao, text="Nenhum arquivo", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
+arquivo_nome.pack(side="right")
 
-acoes_principais = tk.Frame(janela, bg=BG)
-acoes_principais.grid(row=2, column=0, sticky="ew", padx=34, pady=(0, 8))
-acoes_principais.grid_columnconfigure(0, weight=1)
-acoes_principais.grid_columnconfigure(1, weight=0)
+# Painel de ajustes e execução
+lateral = tk.Frame(principal, bg=BG)
+lateral.grid(row=0, column=1, sticky="nsew")
+lateral.grid_columnconfigure(0, weight=1)
 
-botao_comecar = tk.Button(acoes_principais, text="▶  COMEÇAR A DIGITAR", command=iniciar_digitacao,
-                          bg=ACCENT, fg=TEXT, activebackground=ACCENT_HOVER, activeforeground=TEXT,
-                          disabledforeground="#6e6382", relief="flat", borderwidth=0, cursor="hand2",
-                          font=("Segoe UI", 11, "bold"), pady=12)
-botao_comecar.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+def criar_cartao(titulo):
+    frame = tk.Frame(lateral, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
+    frame.pack(fill="x", pady=(0, 18))
+    tk.Label(frame, text=titulo, bg=SURFACE, fg=TEXT, font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=18, pady=(16, 12))
+    return frame
 
-botao_parar = tk.Button(acoes_principais, text="■  PARAR", command=parar_digitacao,
-                        bg=STOP, fg=TEXT, activebackground=STOP_HOVER, activeforeground=TEXT,
-                        disabledforeground="#6e5b63", relief="flat", borderwidth=0,
-                        cursor="hand2", state="disabled", font=("Segoe UI", 10, "bold"),
-                        padx=20, pady=13)
-botao_parar.grid(row=0, column=1)
-tk.Label(janela, text="Você terá 5 segundos para selecionar a janela de destino.", bg=BG, fg=MUTED,
-         font=("Segoe UI", 9)).grid(row=3, column=0, pady=(0, 20))
+ajustes = criar_cartao("☷  Ajustes de digitação")
+intervalo_var = tk.StringVar(value="40")
+atraso_var = tk.StringVar(value="5")
+pausa_linha_var = tk.StringVar(value="0")
+preservar_var = tk.BooleanVar(value=True)
+controles = []
+
+def campo_ajuste(parent, texto, variavel, unidade):
+    linha = tk.Frame(parent, bg=SURFACE)
+    linha.pack(fill="x", padx=18, pady=5)
+    tk.Label(linha, text=texto, bg=SURFACE, fg=MUTED, font=("Segoe UI", 9)).pack(side="left")
+    entrada = tk.Entry(linha, textvariable=variavel, width=7, justify="right", bg=SURFACE_ALT, fg=TEXT, insertbackground=ACCENT, relief="flat", font=("Cascadia Mono", 10))
+    entrada.pack(side="right", padx=(8, 4), ipady=5)
+    tk.Label(linha, text=unidade, bg=SURFACE, fg=MUTED, font=("Segoe UI", 8)).pack(side="right")
+    entrada.bind("<KeyRelease>", lambda _e: atualizar_estimativa())
+    controles.append(entrada)
+    return entrada
+
+campo_ajuste(ajustes, "Intervalo por tecla", intervalo_var, "ms")
+campo_ajuste(ajustes, "Atraso inicial", atraso_var, "s")
+campo_ajuste(ajustes, "Pausa entre linhas", pausa_linha_var, "ms")
+linha_preservar = tk.Frame(ajustes, bg=SURFACE)
+linha_preservar.pack(fill="x", padx=18, pady=(8, 4))
+tk.Label(linha_preservar, text="Preservar quebras de linha", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9)).pack(side="left")
+tk.Checkbutton(linha_preservar, variable=preservar_var, bg=SURFACE, activebackground=SURFACE, selectcolor=ACCENT, command=atualizar_estimativa).pack(side="right")
+velocidade_label = tk.Label(ajustes, text="Velocidade estimada: 25 caracteres/s", bg=SURFACE, fg=MUTED, font=("Segoe UI", 8))
+velocidade_label.pack(anchor="w", padx=18, pady=(5, 16))
+
+execucao = criar_cartao("〽  Execução")
+for titulo, valor in [("Caracteres enviados", "0 / 0"), ("Tempo decorrido", "00:00"), ("Tempo restante", "—"), ("Destino", "Não selecionado")]:
+    linha = tk.Frame(execucao, bg=SURFACE)
+    linha.pack(fill="x", padx=18, pady=4)
+    tk.Label(linha, text=titulo, bg=SURFACE, fg=MUTED, font=("Segoe UI", 9)).pack(side="left")
+    label = tk.Label(linha, text=valor, bg=SURFACE, fg=TEXT, font=("Segoe UI", 9, "bold"))
+    label.pack(side="right")
+    if titulo == "Caracteres enviados": exec_caracteres = label
+    elif titulo == "Tempo decorrido": exec_tempo = label
+    elif titulo == "Tempo restante": exec_restante = label
+    else: exec_destino = label
+exec_duracao = tk.Label(execucao, text="—", bg=SURFACE, fg=MUTED, font=("Segoe UI", 8))
+exec_duracao.pack_forget()
+
+# Rodapé de status, progresso e ações
+rodape = tk.Frame(janela, bg=BG)
+rodape.grid(row=2, column=0, sticky="ew", padx=46, pady=(12, 20))
+rodape.grid_columnconfigure(0, weight=1)
+status_frame = tk.Frame(rodape, bg=BG)
+status_frame.grid(row=0, column=0, sticky="w")
+status = tk.Label(status_frame, text="Pronto para digitar", bg=BG, fg=SUCCESS, font=("Segoe UI", 10, "bold"))
+status.pack(anchor="w")
+modo_label = tk.Label(status_frame, text="Modelo avançado  /  Editor pronto", bg=BG, fg=MUTED, font=("Segoe UI", 8))
+modo_label.pack(anchor="w", pady=(3, 0))
+acoes = tk.Frame(rodape, bg=BG)
+acoes.grid(row=0, column=1, sticky="e")
+contagem_label = tk.Label(acoes, text="", bg=BG, fg=WARNING, font=("Segoe UI", 18, "bold"))
+contagem_label.pack(side="left", padx=(0, 18))
+botao_comecar = tk.Button(acoes, text="▶  COMEÇAR A DIGITAR", command=iniciar_digitacao, bg=ACCENT, fg=TEXT, activebackground=ACCENT_HOVER, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 10, "bold"), padx=22, pady=12)
+botao_comecar.pack(side="left")
+botao_pausar = tk.Button(acoes, text="Ⅱ  PAUSAR", command=alternar_pausa, state="disabled", bg=ACCENT, fg=TEXT, activebackground=ACCENT_HOVER, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 10, "bold"), padx=18, pady=12)
+botao_pausar.pack(side="left", padx=(8, 0))
+botao_parar = tk.Button(acoes, text="□  APARAR", command=parar_digitacao, state="disabled", bg=SURFACE_ALT, fg=STOP_HOVER, activebackground=STOP, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 10, "bold"), padx=18, pady=12)
+botao_parar.pack(side="left", padx=(8, 0))
+progresso = tk.DoubleVar(value=0)
+progresso_barra = tk.Canvas(rodape, height=6, bg=SURFACE_ALT, highlightthickness=0)
+progresso_barra.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(14, 4))
+progresso_barra.create_rectangle(0, 0, 0, 6, fill=ACCENT, outline="", tags="fill")
+progresso_label = tk.Label(rodape, text="0 de 0 caracteres enviados • 0% concluído", bg=BG, fg=MUTED, font=("Segoe UI", 8))
+progresso_label.grid(row=2, column=0, sticky="w")
+tk.Label(rodape, text="Mantenha a janela de destino em foco até concluir.   •   Esc para interromper", bg=BG, fg=MUTED, font=("Segoe UI", 8)).grid(row=2, column=1, sticky="e")
+janela.bind("<Escape>", lambda _e: parar_digitacao())
 
 campo_texto.focus_set()
+atualizar_contador()
 janela.mainloop()
