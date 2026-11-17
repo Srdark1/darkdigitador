@@ -28,6 +28,7 @@ pausa_inicial_cancelada = threading.Event()
 rodando = False
 texto_atual = ""
 arquivo_atual = None
+modo_atual = "avancado"
 
 
 def caminho_recurso(nome):
@@ -244,6 +245,32 @@ def fechar_janela():
     janela.destroy()
 
 
+def alternar_modo(novo_modo):
+    """Alterna entre o fluxo simples e o painel de ajustes avançados."""
+    global modo_atual
+    if rodando:
+        definir_status("Aguarde a digitação terminar para trocar o modo", WARNING)
+        return
+    modo_atual = novo_modo
+    if novo_modo == "simples":
+        # O modo simples mantém a digitação funcionando com valores seguros,
+        # mas deixa a tela livre dos ajustes técnicos.
+        intervalo_var.set("50")
+        atraso_var.set("5")
+        pausa_linha_var.set("0")
+        preservar_var.set(True)
+        ajustes.pack_forget()
+        modo_simples.config(bg=SURFACE_ALT, fg=TEXT, font=("Segoe UI", 9, "bold"))
+        modo_avancado.config(bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
+        modo_label.config(text="Modelo simples  /  Editor pronto", fg=MUTED)
+    else:
+        ajustes.pack(fill="x", pady=(0, 18), before=execucao)
+        modo_simples.config(bg=SURFACE, fg=MUTED, font=("Segoe UI", 9))
+        modo_avancado.config(bg=SURFACE_ALT, fg=TEXT, font=("Segoe UI", 9, "bold"))
+        modo_label.config(text="Modelo avançado  /  Editor pronto", fg=MUTED)
+    atualizar_estimativa()
+
+
 janela = tk.Tk()
 janela.title("Digitador Dark Edition")
 janela.geometry("1180x780")
@@ -278,8 +305,10 @@ tk.Label(cabecalho, text=" Dark Edition", bg=BG, fg=TEXT, font=("Segoe UI", 23, 
 tk.Label(cabecalho, text="Automatize sua digitação com precisão e simplicidade.", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(side="left", padx=(24, 0), pady=(8, 0))
 modo = tk.Frame(cabecalho, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
 modo.pack(side="right")
-tk.Label(modo, text="Simples", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9), padx=20, pady=9).pack(side="left")
-tk.Label(modo, text="Avançado", bg=SURFACE_ALT, fg=TEXT, font=("Segoe UI", 9, "bold"), padx=20, pady=9).pack(side="left")
+modo_simples = tk.Button(modo, text="Simples", command=lambda: alternar_modo("simples"), bg=SURFACE, fg=MUTED, activebackground=SURFACE_ALT, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 9), padx=20, pady=9)
+modo_simples.pack(side="left")
+modo_avancado = tk.Button(modo, text="Avançado", command=lambda: alternar_modo("avancado"), bg=SURFACE_ALT, fg=TEXT, activebackground=SURFACE_ALT, activeforeground=TEXT, relief="flat", borderwidth=0, cursor="hand2", font=("Segoe UI", 9, "bold"), padx=20, pady=9)
+modo_avancado.pack(side="left")
 
 # Área central com editor e painel lateral
 principal = tk.Frame(janela, bg=BG)
