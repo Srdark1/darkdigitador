@@ -45,8 +45,10 @@ Siga os passos abaixo para configurar e executar o projeto:
     *   Uma janela com um campo de texto será exibida.
     *   Você pode digitar o texto diretamente no campo ou usar a opção `Arquivo > Abrir Arquivo` para carregar um arquivo `.txt`.
     *   Clique no botão "COMEÇAR A DIGITAR".
-    *   Após clicar, você terá 5 segundos para posicionar o cursor no local onde deseja que o texto seja digitado (por exemplo, em um editor de texto, navegador, etc.).
+    *   Após clicar, você terá 2 segundos para posicionar o cursor no local onde deseja que o texto seja digitado (por exemplo, em um editor de texto, navegador, etc.).
     *   O programa começará a digitar o texto automaticamente.
+
+    No modo avançado, os valores padrão da versão Windows são atraso inicial de 2 segundos e intervalo de 50 ms entre caracteres.
 
 ## Construindo o Executável (Windows)
 
