@@ -464,7 +464,7 @@ tk.Label(rodape, text="Mantenha a janela de destino em foco.   •   F8 pausa/re
 janela.bind("<Escape>", lambda _e: parar_digitacao())
 try:
     atalho_pausa = keyboard.add_hotkey("f8", lambda: janela.after(0, alternar_pausa))
-except (OSError, RuntimeError):
+except (ImportError, OSError, RuntimeError):
     atalho_pausa = None
 
 campo_texto.focus_set()
