@@ -29,6 +29,8 @@ rodando = False
 texto_atual = ""
 arquivo_atual = None
 modo_atual = "avancado"
+retomada_em_andamento = False
+atalho_pausa = None
 
 
 def caminho_recurso(nome):
@@ -84,8 +86,9 @@ def atualizar_execucao(enviados, total, decorrido=None, destino=None):
 
 
 def finalizar_digitacao(mensagem="Pronto para digitar", cor=MUTED):
-    global rodando
+    global rodando, retomada_em_andamento
     rodando = False
+    retomada_em_andamento = False
     campo_texto.config(state="normal")
     botao_comecar.config(state="normal", text="▶  COMEÇAR A DIGITAR")
     botao_pausar.config(state="disabled", text="Ⅱ  PAUSAR")
@@ -191,16 +194,41 @@ def iniciar_digitacao():
 
 
 def alternar_pausa():
+    global retomada_em_andamento
     if not rodando:
         return
     if pause_evento.is_set():
-        pause_evento.clear()
-        botao_pausar.config(text="Ⅱ  PAUSAR")
-        definir_status("Digitação retomada", ACCENT)
+        if not retomada_em_andamento:
+            try:
+                segundos = max(0, int(float(tempo_retomada_var.get())))
+            except ValueError:
+                segundos = 3
+            retomada_em_andamento = True
+            iniciar_retomada(segundos)
     else:
         pause_evento.set()
         botao_pausar.config(text="▶  RETOMAR")
+        contagem_label.config(text="Ⅱ")
         definir_status("Digitação pausada", WARNING)
+
+
+def iniciar_retomada(segundos):
+    """Faz a contagem regressiva antes de liberar a thread de digitação."""
+    global retomada_em_andamento
+    if not rodando or not pause_evento.is_set():
+        retomada_em_andamento = False
+        return
+    if segundos <= 0:
+        pause_evento.clear()
+        retomada_em_andamento = False
+        botao_pausar.config(state="normal", text="Ⅱ  PAUSAR")
+        contagem_label.config(text="⌨")
+        definir_status("Digitação retomada", ACCENT)
+        return
+    botao_pausar.config(state="disabled", text=f"RETOMANDO {segundos}...")
+    contagem_label.config(text=str(segundos))
+    definir_status(f"Retomando em {segundos} segundo{'s' if segundos != 1 else ''}", WARNING)
+    janela.after(1000, iniciar_retomada, segundos - 1)
 
 
 def parar_digitacao():
@@ -242,6 +270,11 @@ def sobre():
 
 def fechar_janela():
     parar_evento.set()
+    if atalho_pausa is not None:
+        try:
+            keyboard.remove_hotkey(atalho_pausa)
+        except (KeyError, OSError):
+            pass
     janela.destroy()
 
 
@@ -258,6 +291,7 @@ def alternar_modo(novo_modo):
         intervalo_var.set("50")
         atraso_var.set("5")
         pausa_linha_var.set("0")
+        tempo_retomada_var.set("3")
         preservar_var.set(True)
         ajustes.pack_forget()
         modo_simples.config(bg=SURFACE_ALT, fg=TEXT, font=("Segoe UI", 9, "bold"))
@@ -360,6 +394,7 @@ ajustes = criar_cartao("☷  Ajustes de digitação")
 intervalo_var = tk.StringVar(value="40")
 atraso_var = tk.StringVar(value="5")
 pausa_linha_var = tk.StringVar(value="0")
+tempo_retomada_var = tk.StringVar(value="3")
 preservar_var = tk.BooleanVar(value=True)
 controles = []
 
@@ -377,6 +412,7 @@ def campo_ajuste(parent, texto, variavel, unidade):
 campo_ajuste(ajustes, "Intervalo por tecla", intervalo_var, "ms")
 campo_ajuste(ajustes, "Atraso inicial", atraso_var, "s")
 campo_ajuste(ajustes, "Pausa entre linhas", pausa_linha_var, "ms")
+campo_ajuste(ajustes, "Tempo para retomar", tempo_retomada_var, "s")
 linha_preservar = tk.Frame(ajustes, bg=SURFACE)
 linha_preservar.pack(fill="x", padx=18, pady=(8, 4))
 tk.Label(linha_preservar, text="Preservar quebras de linha", bg=SURFACE, fg=MUTED, font=("Segoe UI", 9)).pack(side="left")
@@ -424,8 +460,12 @@ progresso_barra.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(14, 4))
 progresso_barra.create_rectangle(0, 0, 0, 6, fill=ACCENT, outline="", tags="fill")
 progresso_label = tk.Label(rodape, text="0 de 0 caracteres enviados • 0% concluído", bg=BG, fg=MUTED, font=("Segoe UI", 8))
 progresso_label.grid(row=2, column=0, sticky="w")
-tk.Label(rodape, text="Mantenha a janela de destino em foco até concluir.   •   Esc para interromper", bg=BG, fg=MUTED, font=("Segoe UI", 8)).grid(row=2, column=1, sticky="e")
+tk.Label(rodape, text="Mantenha a janela de destino em foco.   •   F8 pausa/retoma   •   Esc interrompe", bg=BG, fg=MUTED, font=("Segoe UI", 8)).grid(row=2, column=1, sticky="e")
 janela.bind("<Escape>", lambda _e: parar_digitacao())
+try:
+    atalho_pausa = keyboard.add_hotkey("f8", lambda: janela.after(0, alternar_pausa))
+except (OSError, RuntimeError):
+    atalho_pausa = None
 
 campo_texto.focus_set()
 atualizar_contador()
