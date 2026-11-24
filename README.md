@@ -70,10 +70,11 @@ O projeto inclui um script `build_app.py` para criar um executável Windows usan
 
 O workflow `.github/workflows/build.yml` é executado automaticamente a cada push na branch `main` e também pode ser iniciado manualmente em **Actions > Build executables > Run workflow**.
 
-Ao terminar, os arquivos ficam disponíveis na área **Artifacts** da execução:
+Ao terminar, o executável atualizado fica disponível na área **Artifacts** da execução:
 
 * `Digitador-Dark-Windows`: executável `.exe` atualizado.
-* `Digitador-Dark-Linux`: executável Linux atualizado.
+
+É necessário baixar esse artefato novo depois da correção; o `.exe` antigo não é atualizado automaticamente.
 
 Para a versão Linux, execute localmente:
 
