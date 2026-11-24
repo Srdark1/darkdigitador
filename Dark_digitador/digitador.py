@@ -110,6 +110,15 @@ def aguardar_com_cancelamento(segundos):
     return True
 
 
+def enviar_quebra_de_linha():
+    """Insere uma quebra sem enviar o formulário ou iniciar uma busca."""
+    keyboard.press("shift")
+    try:
+        keyboard.press("enter")
+    finally:
+        keyboard.release("shift")
+
+
 def digitar_texto(texto, intervalo, atraso, pausa_linha, preservar):
     total = len(texto)
     inicio = time.time()
@@ -142,7 +151,7 @@ def digitar_texto(texto, intervalo, atraso, pausa_linha, preservar):
             if caractere == "\n":
                 # Em navegadores e formulários, Enter pode enviar o conteúdo
                 # ou iniciar uma busca. Shift+Enter cria apenas a quebra de linha.
-                keyboard.hotkey("shift", "enter")
+                enviar_quebra_de_linha()
             else:
                 keyboard.write(caractere)
         except Exception as erro:
