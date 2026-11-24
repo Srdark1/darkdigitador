@@ -289,7 +289,7 @@ def alternar_modo(novo_modo):
         # O modo simples mantém a digitação funcionando com valores seguros,
         # mas deixa a tela livre dos ajustes técnicos.
         intervalo_var.set("50")
-        atraso_var.set("2")
+        atraso_var.set("5")
         pausa_linha_var.set("0")
         tempo_retomada_var.set("3")
         preservar_var.set(True)
@@ -392,7 +392,7 @@ def criar_cartao(titulo):
 
 ajustes = criar_cartao("☷  Ajustes de digitação")
 intervalo_var = tk.StringVar(value="50")
-atraso_var = tk.StringVar(value="2")
+atraso_var = tk.StringVar(value="5")
 pausa_linha_var = tk.StringVar(value="0")
 tempo_retomada_var = tk.StringVar(value="3")
 preservar_var = tk.BooleanVar(value=True)
