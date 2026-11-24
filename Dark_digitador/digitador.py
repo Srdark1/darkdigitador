@@ -139,7 +139,12 @@ def digitar_texto(texto, intervalo, atraso, pausa_linha, preservar):
             janela.after(0, finalizar_digitacao, "Digitação interrompida", WARNING)
             return
         try:
-            keyboard.write(caractere)
+            if caractere == "\n":
+                # Em navegadores e formulários, Enter pode enviar o conteúdo
+                # ou iniciar uma busca. Shift+Enter cria apenas a quebra de linha.
+                keyboard.hotkey("shift", "enter")
+            else:
+                keyboard.write(caractere)
         except Exception as erro:
             janela.after(0, finalizar_digitacao, f"Erro ao digitar: {erro}", STOP)
             return
